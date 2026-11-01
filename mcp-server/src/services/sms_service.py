@@ -508,10 +508,12 @@ class SmsService:
                         found=False,
                         ambiguous=(outcome == "ambiguous"),
                         message=(
-                            f"Sin respuesta del dispositivo en la espera de {wait_seconds} s. "
-                            "El worker sigue sondeando en el servidor y la respuesta queda "
-                            "persistida cuando llegue: vuelve a llamar get_sms_response más tarde "
-                            "(o agenda un recordatorio) y se la devuelvo desde la BD."
+                            f"AVISO SIN RESPUESTA: tras la espera de {wait_seconds} s el equipo NO respondió "
+                            "(la ENTREGA del comando sí está confirmada por 1GLOBAL). Posible causa: el equipo "
+                            "puede estar en una zona con MALA SEÑAL celular (o apagado) y por eso no puede "
+                            "contestar ahora. El worker interno sigue sondeando cada 15 s y persistirá la "
+                            "respuesta en la BD: vuelve a llamar get_sms_response más tarde (o agenda un "
+                            "recordatorio) y se la devuelvo desde la BD sin repetir el envío."
                         ),
                     )
                 await _asyncio.sleep(min(3.0, restante))
@@ -539,8 +541,9 @@ class SmsService:
                     "Se encontraron respuestas candidatas no correlacionables: se reporta "
                     "'ambiguous' en lugar de presentar una respuesta como definitiva."
                     if outcome == "ambiguous"
-                    else "Sin respuesta del dispositivo dentro de la ventana configurada. "
-                    "Puede llegar hasta minutos después de la entrega: vuelve a consultar."
+                    else "Sin respuesta del dispositivo dentro de la ventana configurada. Puede llegar "
+                    "hasta minutos después de la entrega: vuelve a consultar. Si nunca llega, posible "
+                    "causa: el equipo está en una zona con mala señal celular o apagado."
                 ),
             )
         fresh = (await self._get_task(local_task_id)) or task

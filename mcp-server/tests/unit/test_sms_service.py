@@ -252,6 +252,18 @@ async def test_respuesta_detectada_y_eco_excluido(tmp_path) -> None:
     await close(components)
 
 
+async def test_espera_agotada_avisa_mala_senal(tmp_path) -> None:
+    """Al agotar wait_seconds sin respuesta, el aviso cita la causa señal/cobertura."""
+    components = await build_service(tmp_path)
+    _, service, _repo = components
+    sent = await _delivered_task(components, "noresp-wait-1")
+    result = await service.response(sent.local_task_id, wait_seconds=1)
+    assert result.found is False
+    assert "mala señal" in result.message or "MALA SEÑAL" in result.message
+    assert "worker" in result.message.lower()  # el worker sigue sondeando y persistirá
+    await close(components)
+
+
 async def test_sin_respuesta_se_reporta_conservadoramente(tmp_path) -> None:
     components = await build_service(tmp_path)
     _, service, _repo = components
