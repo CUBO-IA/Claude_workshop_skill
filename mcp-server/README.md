@@ -206,6 +206,60 @@ manualmente con el listado de detalles de SMS).
 
 ## 7. Integración con un cliente MCP (OpenClaw)
 
+### Despliegue en Docker
+
+La imagen no contiene secretos: la configuración se inyecta al ejecutar
+(`--env-file`/compose o variables de entorno). El modo replay funciona incluso
+sin `.env` (defaults seguros), pero para usar el dispositivo real hay que
+crear `mcp-server/.env` (ver §3).
+
+```bash
+cd mcp-server
+# Construir la imagen:
+docker build -t oneglobal-sms:0.1.0 .
+
+# A) INVOCACIÓN por stdio (la que usa la skill/agente vía su cliente MCP):
+docker run -i --rm --env-file .env -v ./data:/app/data oneglobal-sms:0.1.0
+#    equivalente con compose:
+docker compose run --rm mcp-stdio
+
+# B) SERVICIO HTTP en ejecución continua (queda lanzado en este equipo):
+docker compose up -d mcp-http
+#    Endpoint MCP: https://localhost:8443/mcp (TLS obligatorio: sin cert no arranca)
+#    Genera los certificados antes: python main.py gen-certs
+#    Ver: docker compose ps ; Parar: docker compose stop mcp-http
+```
+
+Registro del servidor en el cliente MCP (estilo OpenClaw/Claude) usando Docker:
+
+```json
+{
+  "mcpServers": {
+    "oneglobal-sms": {
+      "command": "docker",
+      "args": [
+        "run", "-i", "--rm",
+        "--env-file", "/ruta/al/repo/mcp-server/.env",
+        "-v", "/ruta/al/repo/mcp-server/data:/app/data",
+        "oneglobal-sms:0.1.0"
+      ]
+    }
+  }
+}
+```
+
+O con compose para el servicio HTTP: el cliente remoto de MCP se conecta a
+`https://localhost:8443/mcp` — el contrato de herramientas (`send_sms`,
+`get_sms_status`, `get_sms_response`) es IDÉNTICO en stdio y HTTP: la skill no
+necesita saber cómo corre el servidor.
+
+Estructura de archivos de Docker: `Dockerfile` (imagen slim sin secretos,
+usuario no root, permite `serve|worker|mint`), `.dockerignore` (excluye
+`.venv`, `data/`, `.env`, cachés) y `docker-compose.yml` (`mcp-stdio` para
+invocación y `mcp-http` con `restart: unless-stopped` para dejarlo lanzado).
+
+### Registro local (sin Docker)
+
 Registra el servidor en la configuración del cliente MCP compatible, por
 ejemplo estilo Claude/OpenClaw:
 

@@ -62,7 +62,14 @@ class Settings(BaseSettings):
 
     # --- MCP ---
     mcp_server_name: str = "oneglobal-sms"
-    mcp_transport: Literal["stdio"] = "stdio"
+    # stdio: cliente local (skill/agente, sin red); streamable-http/sse: red.
+    # El transporte por red EXIGE TLS: si no hay certificado configurado, el
+    # servidor HTTP no arranca (MCP_TLS_CERTFILE / MCP_TLS_KEYFILE).
+    mcp_transport: Literal["stdio", "streamable-http", "sse"] = "stdio"
+    mcp_http_host: str = "127.0.0.1"
+    mcp_http_port: int = 8000
+    mcp_tls_certfile: str = ""
+    mcp_tls_keyfile: str = ""
 
     # --- Ejecución SMS ---
     sms_dry_run: bool = True

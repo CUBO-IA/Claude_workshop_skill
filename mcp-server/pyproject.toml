@@ -9,6 +9,7 @@ dependencies = [
     "pydantic>=2.7",
     "pydantic-settings>=2.2",
     "aiosqlite>=0.20",
+    "uvicorn>=0.30",
 ]
 
 [project.optional-dependencies]

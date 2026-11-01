@@ -1,0 +1,50 @@
+# Servidor MCP de 1GLOBAL — compose del laboratorio
+#
+# 1) INVOCACIÓN por stdio (cliente MCP / skill):
+#       docker compose run --rm mcp-stdio
+#    o directo: docker run -i --rm --env-file .env -v ./data:/app/data oneglobal-sms:0.1.0
+#    (lee .env si existe; sin él corre en replay con defaults seguros)
+#
+# 2) SERVICIO HTTPS en ejecución continua (queda lanzado con `up -d`):
+#       python main.py gen-certs        (operador: genera TLS en ./data/certs)
+#       docker compose up -d mcp-http
+#    Endpoint MCP: https://localhost:8443/mcp  (SIEMPRE con TLS: sin cert no arranca)
+#
+services:
+  mcp-stdio:
+    build: .
+    image: oneglobal-sms:0.1.0
+    init: true
+    stdin_open: true
+    environment:
+      MCP_TRANSPORT: stdio
+      DATABASE_PATH: /app/data/sms_tasks.db
+      APPROVAL_SECRET_PATH: /app/data/approval_secret.key
+    env_file:
+      - path: .env
+        required: false
+    volumes:
+      - ./data:/app/data
+
+  # HTTPS para dejar el servidor en ejecución en este equipo (perfil "http")
+  mcp-http:
+    image: oneglobal-sms:0.1.0
+    build: .
+    init: true
+    command: ["serve"]
+    environment:
+      MCP_TRANSPORT: streamable-http
+      MCP_HTTP_HOST: 0.0.0.0
+      MCP_HTTP_PORT: 8000
+      MCP_TLS_CERTFILE: /app/data/certs/oneglobal-mcp.crt
+      MCP_TLS_KEYFILE: /app/data/certs/oneglobal-mcp.key
+      DATABASE_PATH: /app/data/sms_tasks.db
+      APPROVAL_SECRET_PATH: /app/data/approval_secret.key
+    env_file:
+      - path: .env
+        required: false
+    volumes:
+      - ./data:/app/data
+    ports:
+      - "8443:8000"
+    restart: unless-stopped

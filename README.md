@@ -19,7 +19,7 @@ La regla de reparto es simple:
 | Carpeta / archivo | Qué es |
 | --- | --- |
 | `skill/teltonika-commands/` | Skill **teltonika-commands**: catálogo de comandos SMS/GPRS Teltonika (familia FMB/FMC), preparación local del SMS sin red y contrato de integración MCP. Ver su [SKILL.md](skill/teltonika-commands/SKILL.md) |
-| `mcp-server/` | Servidor MCP **oneglobal-sms** (Python): herramientas `send_sms`, `get_sms_status` y `get_sms_response` sobre el SDK oficial de MCP, con transporte live (HTTPX) y modo replay. Documentación completa en [mcp-server/README.md](mcp-server/README.md) |
+| `mcp-server/` | Servidor MCP **oneglobal-sms** (Python): herramientas `send_sms`, `get_sms_status` y `get_sms_response` sobre el SDK oficial de MCP, con transporte live (HTTPS a 1GLOBAL) y modo replay. Desplegable en **Docker** (`Dockerfile` + `docker-compose.yml`: stdio para la skill, o servicio HTTPS continuo en el puerto 8443). Documentación completa en [mcp-server/README.md](mcp-server/README.md) |
 | `.sources/guide_api_global.md` | Guía técnica de la integración 1GLOBAL (referencia interna, **excluida de Git**) |
 | `.env` / `mcp-server/.env` | Configuración local con secretos (**excluidos de Git**); las plantillas versionables son `.env.example` y `mcp-server/.env.example` |
 
@@ -87,6 +87,11 @@ pip install mcp httpx pydantic pydantic-settings aiosqlite
 # 2) Arrancar el servidor MCP (stdio) para un cliente compatible
 python main.py serve --env-file .env
 
+# … o desplegarlo en Docker (sin secretos en la imagen; transporte de red SIEMPRE con TLS):
+docker build -t oneglobal-sms:0.1.0 .
+docker run -i --rm --env-file .env -v ./data:/app/data oneglobal-sms:0.1.0   # stdio (skill)
+python main.py gen-certs && docker compose up -d mcp-http                   # HTTPS servido en https://localhost:8443/mcp
+
 # 3) Pruebas y verificación
 pip install pytest pytest-asyncio respx ruff mypy
 pytest -q && ruff check src tests main.py && mypy src
@@ -97,10 +102,17 @@ explicación detallada en `mcp-server/README.md`.
 
 ## Estado actual del laboratorio
 
-- ✅ Servidor MCP completo y verificado (79 pruebas: unitarias + integración
+- ✅ Servidor MCP completo y verificado (85 pruebas: unitarias + integración
   MCP por el protocolo oficial, sin llamadas de red reales).
 - ✅ Ciclo replay completo: dry-run → envío → `delivered` → respuesta del equipo.
-- ⏳ Transmisión **real**: pendiente de config y habilitación por el operador
+- ✅ Docker: imagen `oneglobal-sms:0.1.0` (sin secretos), con modo stdio para la
+  skill y servicio HTTPS continuo (`mcp-http`, puerto 8443 con `restart:
+  unless-stopped`); contenedor verificado en este equipo y consultable por
+  HTTPS y por stdio.
+- ✅ Transporte por red **SIEMPRE con TLS** (`require_tls_for_http`): sin
+  certificados el servidor HTTPS se niega a arrancar (`gen-certs` para el
+  lab; cert de CA real cuando haya dominio).
+- ⏳ Transmisión **real**: pendiente de habilitación por el operador
   (ver "Seguridad"): aún `SMS_DRY_RUN=true` y `SMS_LIVE_ENABLED=false`.
 
 ## Licencia

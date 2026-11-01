@@ -73,6 +73,11 @@
   },
   "integration": {
     "mcp_provider": "1GLOBAL",
+    "docker_deployment": {
+      "stdio_client_command": "docker run -i --rm --env-file <mcp-server>/.env -v <mcp-server>/data:/app/data oneglobal-sms:0.1.0",
+      "http_endpoint": "https://localhost:8443/mcp (servicio mcp-http de docker-compose, en ejecución continua; transporte por red SIEMPRE con TLS — HTTP plano se niega a arrancar)",
+      "tool_contract_same_in_all_modes": true
+    },
     "mcp_tools_proposed": [
       "send_sms",
       "get_sms_status",

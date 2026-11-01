@@ -1,0 +1,14 @@
+# Contexto mínimo para la imagen: código, fixtures y plantillas
+.venv
+__pycache__
+*.pyc
+.pytest_cache
+.mypy_cache
+.ruff_cache
+data
+.env
+tests/*
+!tests/fixtures
+Dockerfile
+docker-compose.yml
+.dockerignore
