@@ -1,0 +1,6 @@
+# Freebuff
+.freebuff/
+.sources/
+
+# Environment
+.env
