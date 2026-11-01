@@ -47,6 +47,64 @@ async def test_ciclo_completo_con_worker(tmp_path) -> None:
         await components.repo.close()
 
 
+async def test_respuesta_con_wait_seconds_entrega_en_misma_llamada(tmp_path) -> None:
+    """La espera activa (wait_seconds) obtiene la respuesta en la MISMA llamada."""
+    import time
+
+    env_path = write_env_file(tmp_path)
+    settings = load_settings(env_path)
+    components = create_components(settings)
+    await components.repo.connect()
+    try:
+        service, worker = components.service, components.worker
+        sent = await service.submit(
+            SendSmsInput(target="test", text="  web_connect", dry_run=False, request_id="wl-wait")
+        )
+        await worker.run_pass()
+        await worker.run_pass()  # replay confirma entrega
+        status = await service.status(sent.local_task_id)
+        assert status.status == "delivered"
+
+        t0 = time.monotonic()
+        response = await service.response(sent.local_task_id, wait_seconds=10)
+        elapsed = time.monotonic() - t0
+        assert response.found is True
+        assert response.response_content not in (None, "")
+        assert elapsed < 10.0  # la detección corta la espera en cuanto llega
+
+        # Llamada posterior SIN espera: devuelve la respuesta persistida.
+        instant = await service.response(sent.local_task_id)
+        assert instant.found is True
+        assert instant.response_content == response.response_content
+    finally:
+        await components.worker.stop()
+        await components.client.close()
+        await components.repo.close()
+
+
+async def test_wait_seconds_no_se_aplica_a_tareas_sin_transmision_real(tmp_path) -> None:
+    """Dry-run: la espera cortocircuita sin escandalizar (no hay que sondear nada)."""
+    import time
+
+    env_path = write_env_file(tmp_path)
+    settings = load_settings(env_path)
+    components = create_components(settings)
+    await components.repo.connect()
+    try:
+        service = components.service
+        sent = await service.submit(
+            SendSmsInput(target="test", text="  web_connect", dry_run=True, request_id="wl-wait-dry")
+        )
+        t0 = time.monotonic()
+        response = await service.response(sent.local_task_id, wait_seconds=10)
+        assert response.found is False
+        assert time.monotonic() - t0 < 2.0  # corto-circuito inmediato
+    finally:
+        await components.worker.stop()
+        await components.client.close()
+        await components.repo.close()
+
+
 async def test_worker_recupera_pendiente_como_incierto_sin_reenviar(tmp_path) -> None:
     env_path = write_env_file(tmp_path)
     settings = load_settings(env_path)

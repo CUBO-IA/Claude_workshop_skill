@@ -426,8 +426,16 @@ class SmsService:
     # get_sms_response
     # ------------------------------------------------------------------ #
     async def response(
-        self, local_task_id: str | None = None, *, target: str = "test"
+        self,
+        local_task_id: str | None = None,
+        *,
+        target: str = "test",
+        wait_seconds: int = 0,
     ) -> ResponseResult:
+        # La espera activa está acotada por configuración (defensa del tiempo
+        # de la llamada MCP). El agente puede esperar hasta ese máximo en la
+        # MISMA llamada mientras el worker externo detecta en paralelo.
+        wait_seconds = max(0, min(int(wait_seconds), self._cfg.sms_response_wait_max_seconds))
         task, missing = await self._resolve_task(local_task_id, target)
         if task is None:
             return ResponseResult(
@@ -474,6 +482,52 @@ class SmsService:
                     "equipo llega después de la entrega. Consulta get_sms_status primero."
                 ),
             )
+
+        # Espera activa acotada: sondeo interno (≤3 s por intento) mientras el
+        # worker externo también detecta en paralelo; aborta al detectar.
+        if wait_seconds > 0:
+            import asyncio as _asyncio
+
+            deadline = utc_now() + timedelta(seconds=wait_seconds)
+            while not task.get("response_received"):
+                outcome = await self._detect_response(task)
+                if not isinstance(outcome, str):
+                    break  # respuesta detectada y persistida
+                fresh = await self._get_task(local_task_id) or task
+                if fresh.get("response_received"):
+                    task = fresh
+                    break
+                restante = (deadline - utc_now()).total_seconds()
+                if restante <= 0:
+                    logger.info(
+                        "Espera agotada (%s s) sin respuesta aún para %s: el worker sigue sondeando.",
+                        wait_seconds, local_task_id,
+                    )
+                    return ResponseResult(
+                        **base,
+                        found=False,
+                        ambiguous=(outcome == "ambiguous"),
+                        message=(
+                            f"Sin respuesta del dispositivo en la espera de {wait_seconds} s. "
+                            "El worker sigue sondeando en el servidor y la respuesta queda "
+                            "persistida cuando llegue: vuelve a llamar get_sms_response más tarde "
+                            "(o agenda un recordatorio) y se la devuelvo desde la BD."
+                        ),
+                    )
+                await _asyncio.sleep(min(3.0, restante))
+                local_task_ref = await self._get_task(local_task_id)
+                if local_task_ref is not None:
+                    task = local_task_ref
+                continue
+            if task.get("response_received"):
+                fresh = (await self._get_task(local_task_id)) or task
+                return ResponseResult(
+                    **base,
+                    found=True,
+                    response_content=fresh.get("response_content"),
+                    detected_at=fresh.get("response_at"),
+                    message="Respuesta del dispositivo detectada y persistida.",
+                )
 
         outcome = await self._detect_response(task)
         if isinstance(outcome, str):

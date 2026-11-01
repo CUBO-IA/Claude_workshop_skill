@@ -159,6 +159,15 @@ class GetResponseInput(BaseModel):
         "test",
         description="Resolución por dispositivo: 'test' devuelve la última tarea del equipo de pruebas.",
     )
+    wait_seconds: int = Field(
+        0,
+        ge=0,
+        description=(
+            "Espera ACTIVA de hasta 120 s por la respuesta del equipo dentro de la misma "
+            "llamada, sondeando el servidor internamente en paralelo con el worker. "
+            "0 = comportamiento inmediato (comprobar y volver)."
+        ),
+    )
 
     @model_validator(mode="after")
     def _need_reference(self) -> GetResponseInput:

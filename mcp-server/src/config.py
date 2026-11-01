@@ -85,6 +85,9 @@ class Settings(BaseSettings):
     sms_poll_interval_seconds: float = 5.0
     sms_sent_grace_seconds: int = 600
     sms_response_window_seconds: int = 3600
+    # Espera ACTIVA máxima de get_sms_response(wait_seconds=…) al sondear la
+    # respuesta del equipo en la misma llamada del agente (0 = no esperar).
+    sms_response_wait_max_seconds: int = 120
     sms_poll_max_age_seconds: int = 86400
     sms_max_retries: int = 3
     sms_device_max_per_hour: int = 5
