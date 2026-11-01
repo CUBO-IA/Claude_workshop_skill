@@ -1,0 +1,112 @@
+{
+  "schema_version": "1.0.0",
+  "language": "es-ES",
+  "source_url": "https://wiki.teltonika-gps.com/view/FMB_SMS/GPRS_Commands",
+  "rules": {
+    "commands_are_case_sensitive": true,
+    "sms_when_credentials_unset": {
+      "prefix_spaces": 2,
+      "description": "Ante usuario y contraseña SMS no configurados, anteponer exactamente dos espacios ASCII al comando."
+    },
+    "sms_when_credentials_configured": {
+      "format": "<sms_login> <sms_password> <command> [arguments]",
+      "secrets_policy": "Nunca registrar, imprimir ni divulgar credenciales SMS reales."
+    },
+    "gprs_transport": "Los comandos por GPRS requieren Codec 12; no confundir con SMS enviado por 1GLOBAL.",
+    "sms_max_characters_for_parameters": 160,
+    "sleep_mode": "Deep Sleep puede retrasar la recepción SMS; comprobar el modo de energía.",
+    "important": "La inclusión en la tabla de familia no demuestra compatibilidad con todas las versiones de firmware."
+  },
+  "profiles": [
+    {
+      "id": "fmb_command_table",
+      "family": "FMB SMS/GPRS Commands",
+      "documented_models": [
+        "FMB001",
+        "FMB010",
+        "FMB110",
+        "FMB120",
+        "FMB122",
+        "FMB125",
+        "FMB130",
+        "FMB140",
+        "FMB150",
+        "FMB900",
+        "FMB920",
+        "FMB202",
+        "FMB204",
+        "FMB206",
+        "FMC001",
+        "FMC125",
+        "FMC130",
+        "FMC150",
+        "FMC920",
+        "FMC800",
+        "FMC880",
+        "FMC250",
+        "FMM001",
+        "FMM125",
+        "FMM130",
+        "FMM150",
+        "FMM800",
+        "FMM80A",
+        "FMM880",
+        "FMM920",
+        "FMT100",
+        "FMP100"
+      ],
+      "notes": "Los modelos aparecen en entradas de compatibilidad generales; no constituye matriz exhaustiva para cada comando."
+    }
+  ],
+  "command_overrides": {
+    "setdigout": {
+      "models": "model_specific",
+      "status": "require_individual_row_check",
+      "note": "Verificar la fila específica del comando en la documentación oficial; no inferir compatibilidad por pertenencia a la familia."
+    }
+  },
+  "verification_policy": {
+    "model_unknown": "ask_for_model_before_send",
+    "firmware_unknown": "explain_firmware_uncertainty",
+    "unsupported_or_unverified": "do_not_send_without_official_verification",
+    "parameter_id_unknown": "do_not_invent"
+  },
+  "integration": {
+    "mcp_provider": "1GLOBAL",
+    "mcp_tools_proposed": [
+      "send_sms",
+      "get_sms_status",
+      "get_sms_response"
+    ],
+    "tool_contract_status": "propuesto; validar nombres y esquemas publicados por el servidor MCP real",
+    "destination_identifier": "ICCID autorizado",
+    "default_mode": "solo consulta; la transmisión requiere intención explícita, confirmación y autorización en el servidor",
+    "never_auto_send": true,
+    "test_target": {
+      "logical_target": "test",
+      "synonyms_es": [
+        "dispositivo de pruebas",
+        "equipo de pruebas",
+        "FMC130 de pruebas",
+        "mi equipo de laboratorio"
+      ],
+      "environment_owner": "servidor MCP de 1GLOBAL, no la skill",
+      "proposed_env_keys": [
+        "TELTONIKA_TEST_IMEI",
+        "ONEGLOBAL_TEST_ICCID"
+      ],
+      "mcp_must_resolve_target": true,
+      "ask_for_test_imei_or_iccid": false,
+      "verify_imei_iccid_relationship_if_trusted_source_exists": true,
+      "reject_if_unconfigured_or_not_allowed": true,
+      "mask_identifiers_in_outputs": true,
+      "dry_run_must_not_transmit": true
+    },
+    "send_sms_proposed_input": {
+      "target": "test",
+      "text": "SMS preparado, sin recortar espacios iniciales",
+      "request_id": "identificador único",
+      "dry_run": "opcional, según esquema real"
+    }
+  }
+}
