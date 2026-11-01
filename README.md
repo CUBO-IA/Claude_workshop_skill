@@ -14,6 +14,35 @@ La regla de reparto es simple:
   dispositivo de pruebas, aplica la política de comandos, cursa el SMS por
   1GLOBAL, persiste la tarea y correlaciona la respuesta del equipo.
 
+## Instalar la skill en cualquier agente (para compartir el repo)
+
+La skill `teltonika-commands` se instala con el Skills CLI estándar
+(`npx skills`, de skills.sh). Este repositorio incluye `install-skill.sh`,
+que envuelve ese comando y admite el ámbito **global** o **de proyecto**:
+
+```bash
+./install-skill.sh                  # interactiva: elige agente y ámbito
+./install-skill.sh --list           # solo listar las skills del repo
+./install-skill.sh --global         # GLOBAL: todos tus proyectos (~/<agente>/skills)
+./install-skill.sh                  # (sin -g) PROYECTO: ./<agente>/skills del proyecto actual
+./install-skill.sh --global -y --agent claude-code   # sin preguntas (CI/CD)
+./install-skill.sh --copy           # copiar archivos en vez de symlinks
+```
+
+O directamente, sin el instalador:
+
+```bash
+npx skills add CUBO-IA/Claude_workshop_skill --skill teltonika-commands      # proyecto
+npx skills add CUBO-IA/Claude_workshop_skill --skill teltonika-commands -g   # global
+npx skills add ./ruta/al/repo --skill teltonika-commands                    # repo clonado local
+```
+
+Notas: esta instalación aporta la capa de **conocimiento Teltonika** al agente;
+la transmisión real pasa siempre por el **servidor MCP** (`mcp-server/`, abajo)
+que cada usuario configura con sus propios identificadores (ICCID/IMEI) y token:
+la skill coordina, el MCP transmite. Si el destino `test` no está configurado en
+el MCP de quien la usa, la skill detiene el envío en lugar de inventar identificadores.
+
 ## Contenido del repositorio
 
 | Carpeta / archivo | Qué es |
