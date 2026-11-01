@@ -78,7 +78,8 @@
       "get_sms_status",
       "get_sms_response"
     ],
-    "tool_contract_status": "propuesto; validar nombres y esquemas publicados por el servidor MCP real",
+    "tool_contract_status": "implementado en el servidor MCP de este repositorio (mcp-server/): send_sms(target, text, dry_run, request_id, approval_token); get_sms_status / get_sms_response(local_task_id | reference_id | sin id -> última tarea del target 'test')",
+    "local_task_id_semantics": "el id local remite al dispositivo: prefijo smsq_ + huella (8 hex del SHA-256 del ICCID) + sufijo único; resolución por dispositivo admitida en las consultas sin id",
     "destination_identifier": "ICCID autorizado",
     "default_mode": "solo consulta; la transmisión requiere intención explícita, confirmación y autorización en el servidor",
     "never_auto_send": true,
@@ -97,7 +98,8 @@
       ],
       "mcp_must_resolve_target": true,
       "ask_for_test_imei_or_iccid": false,
-      "verify_imei_iccid_relationship_if_trusted_source_exists": true,
+      "verify_imei_iccid_relationship_if_trusted_source_exists": false,
+      "note_imei_iccid": "el MCP usa el ICCID como destino y guarda el IMEI como referencia local; la asociación no se verifica contra 1GLOBAL",
       "reject_if_unconfigured_or_not_allowed": true,
       "mask_identifiers_in_outputs": true,
       "dry_run_must_not_transmit": true
@@ -106,7 +108,8 @@
       "target": "test",
       "text": "SMS preparado, sin recortar espacios iniciales",
       "request_id": "identificador único",
-      "dry_run": "opcional, según esquema real"
+      "dry_run": "opcional, según esquema real",
+      "approval_token": "obligatorio para transmisión real; lo emite el operador con el CLI del servidor, nunca el modelo"
     }
   }
 }

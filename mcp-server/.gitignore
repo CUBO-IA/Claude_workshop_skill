@@ -1,0 +1,17 @@
+# Entorno virtual y cachés
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Entorno local con secretos (NUNCA versionar)
+.env
+
+# Datos locales de laboratorio (SQLite, secreto de aprobación)
+data/*
+!data/.gitkeep
+
+# El ejemplo de entorno SÍ se versiona (no ignorar .env.example)
+!.env.example

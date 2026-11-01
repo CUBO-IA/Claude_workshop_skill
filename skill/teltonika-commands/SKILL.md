@@ -41,11 +41,11 @@ La existencia de una herramienta MCP no convierte las preguntas de consulta en �
 
 El servidor MCP será un componente **independiente**. El agente debe comprobar en tiempo de ejecución qué herramientas están realmente expuestas y qué esquemas de entrada aceptan. Los siguientes nombres son un **contrato propuesto**, no una afirmación de que ya existan:
 
-| Capacidad requerida | Nombre MCP propuesto | Datos de entrada tentativos |
+| Capacidad requerida | Nombre MCP implementado | Datos de entrada reales |
 | --- | --- | --- |
-| Enviar SMS | `send_sms` | `target: "test"` o ICCID explícito autorizado; `text`, `request_id`, `dry_run` (si el esquema real lo admite) |
-| Consultar estado | `get_sms_status` | `reference_id` |
-| Recuperar respuestas del dispositivo | `get_sms_response` | ICCID, período de consulta y referencia de correlación si está disponible |
+| Enviar SMS | `send_sms` | `target: "test"`; `text` (SMS preparado, con sus espacios iniciales); `request_id`; `dry_run` (opcional: si se omite aplica `SMS_DRY_RUN` del servidor); `approval_token` (solo para transmisiones reales: lo emite el operador, nunca el modelo) |
+| Consultar estado | `get_sms_status` | `local_task_id` (o alias `reference_id`); **opcional**: si no se indica id, devuelve la tarea MÁS RECIENTE del dispositivo de pruebas (el id local remite al dispositivo por huella del ICCID, como en el proyecto previo) |
+| Recuperar respuestas del dispositivo | `get_sms_response` | `local_task_id` (o alias `reference_id`); sin id usa la última tarea del dispositivo de pruebas; la correlación es responsabilidad del servidor MCP, NO del agente ni de esta skill |
 
 ### Dispositivo de pruebas predeterminado (archivo `.env` del MCP)
 
@@ -53,20 +53,20 @@ El IMEI e ICCID **del equipo de pruebas** residen únicamente en la configuraci�
 
 - «Equipo de pruebas», «dispositivo de pruebas», «FMC130 de pruebas» y «mi equipo de laboratorio» se interpretan como **destino lógico `test`**.
 - Para ese destino, **no preguntes por IMEI ni ICCID**: invoca la herramienta MCP real que admita `target: "test"` o un mecanismo equivalente, con arreglo a su esquema publicado.
-- El MCP debe resolver `test` a `ONEGLOBAL_TEST_ICCID`, limitar el envío a una **allowlist**, y, si hay un servicio confiable de asociación IMEI↔ICCID, verificar que coincide con `TELTONIKA_TEST_IMEI`.
-- La mera presencia simultánea de esas dos variables **no prueba** que pertenezcan al mismo dispositivo. Si no existe una verificación confiable, usar únicamente el ICCID de pruebas explícitamente autorizado y reportar que la asociación no está verificada.
+- El MCP implementado en este repositorio resuelve `test` a `ONEGLOBAL_TEST_ICCID`, limita el envío a una **allowlist** de comandos de riesgo bajo y **no verifica** contra 1GLOBAL la asociación IMEI↔ICCID: usa únicamente el ICCID como destino y guarda el IMEI como referencia local. Si no existe una verificación confiable, usar únicamente el ICCID de pruebas explícitamente autorizado y reportar que la asociación no está verificada.
 - El MCP debe rechazar el envío si faltan variables, el destino no está autorizado o el modo de operación no permite transmisiones. Un `dry_run` debe preparar o simular, pero nunca enviar.
 - Solo para un destino diferente de `test`, solicitar o resolver la identificación necesaria mediante una herramienta autorizada. Nunca inventar un ICCID.
-- Las claves `.env` son una **convención propuesta** para el MCP futuro; su implementación y esquema real deben concordar con este contrato antes de usarlo.
+- Las claves `.env` (`TELTONIKA_TEST_IMEI`, `ONEGLOBAL_TEST_ICCID`) son un **contrato ya implementado** por el servidor MCP de este repositorio (`mcp-server/src/config.py`); esta skill sigue sin leer `.env` ni revelar identificadores.
 
-Ejemplo **conceptual**, no ejecutable hasta que exista la tool MCP con ese esquema:
+Ejemplo **conceptual**, alineado con el esquema publicado por el MCP:
 
 ```json
 {
   "target": "test",
   "text": "  web_connect",
   "request_id": "identificador-unico-de-solicitud",
-  "dry_run": true
+  "dry_run": true,
+  "approval_token": "token-de-un-solo-uso-del-operador (solo transmisión real)"
 }
 ```
 
@@ -80,9 +80,11 @@ La cadena `text` del ejemplo contiene exactamente dos espacios ASCII iniciales; 
 4. Descubre las herramientas MCP **reales** y valida su esquema, identidad del proveedor y disponibilidad. No inventes herramientas, parámetros ni respuestas.
 5. Muestra al usuario «equipo de pruebas» o el destino enmascarado, el comando exacto (sin revelar credenciales) y el efecto esperado; solicita **confirmación explícita de ese envío concreto**. Si el MCP no expone el ICCID para enmascararlo, no lo requieras.
 6. Solo después de obtenerla, invoca la herramienta MCP de envío con `target: "test"` (o el mecanismo equivalente efectivamente publicado) y un identificador de solicitud único; el MCP aplica su allowlist, autorización, idempotencia y política de seguridad. Respeta el modo `dry_run` del servidor: jamás declares enviado un SMS simulado.
-7. Registra o comunica la referencia realmente devuelta por el proveedor, el estado y los errores sin revelar secretos. No afirmes éxito de entrega por una respuesta de aceptación de la API.
-8. Si el usuario solicita seguimiento, usa las tools reales de estado y respuesta; separa «aceptado por API», «entregado» y «comando ejecutado».
-9. Ante respuesta ambigua, error de red o timeout tras intentar transmitir, **no reintentes a ciegas**: consulta primero el estado y evita duplicados.
+7. Si el MCP rechaza el envío pidiendo el `approval_token`, **detente**: ese token lo emite el OPERADOR del servidor con su CLI (p. ej. `python main.py mint "<texto-exacto>"`); tú no lo generas, lo inventas ni lo reproduces. Comunica al usuario los pasos exactos del operador y espera el token. Si el usuario lo proporciona, pásalo íntegro en el parámetro `approval_token` de la invocación (es de UN solo uso y expira).
+8. Si la respuesta del MCP indica `mode=replay` (o simular), comunica SIEMPRE que fue una **SIMULACIÓN sin transmisión real**; no lo confundas con un envío real.
+9. Registra o comunica la referencia realmente devuelta por el proveedor, el estado y los errores sin revelar secretos. No afirmes éxito de entrega por una respuesta de aceptación de la API.
+10. Si el usuario solicita seguimiento, usa las tools reales de estado y respuesta; separa «aceptado por API», «entregado» y «comando ejecutado». Si no recuerdas el `local_task_id`, llama `get_sms_status` o `get_sms_response` SIN id: con `target='test'` el servidor resuelve la última tarea del dispositivo de pruebas (no pidas IMEI/ICCID: el ICCID del destino se resuelve y oculta en el servidor).
+11. Ante respuesta ambigua, error de red o timeout tras intentar transmitir, **no reintentes a ciegas**: consulta primero el estado y evita duplicados.
 
 ### Si el MCP no existe o no está disponible
 
